@@ -4,11 +4,13 @@ module.exports = exports = function() {
 
         actions: {},
 
-        exec: function(name, state, cb) {
+        exec: function(name, state) {
             var action = executor.actions[name];
-            if (!action) return cb(null, false);
-            if (action.valid && !action.valid(state)) return cb(null, false);
-            action(state, cb);
+            if (!action) return false;
+            var args = arguments.slice(2);
+            if (action.valid && !action.valid.apply(state, args)) return false;
+            action.apply(state, args);
+            return true;
         }
     };
 

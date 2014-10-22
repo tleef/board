@@ -50,12 +50,6 @@ module.exports = exports = function() {
             return State(stateBytes.length, stateByteIndex);
         },
 
-        bits: function(byte) {
-            var pad = '00000000';
-            byte = byte.toString('2');
-            return pad.substring(0, pad.length - byte.length) + byte;
-        },
-
         pack: function(bytes) {
             var chars = [];
             for(var i = 0, n = bytes.length; i < n;) {
