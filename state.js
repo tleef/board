@@ -1,11 +1,11 @@
 
-module.exports = exports = function(numBytes, byteIndex) {
-    return new State(numBytes, byteIndex);
+module.exports = exports = function(byteCount, byteIndex) {
+    return new State(byteCount, byteIndex);
 };
 
-function State(numBytes, byteIndex) {
+function State(byteCount, byteIndex) {
     this.byteIndex = byteIndex;
-    this.bytes = new Uint8Array(numBytes);
+    this.bytes = new Uint8Array(byteCount);
 
 }
 

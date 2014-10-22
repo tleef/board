@@ -17,6 +17,7 @@ module.exports = exports = function() {
     var executor = Executor();
     var stateDefinitions = [];
     var stateBytes = [];
+    var stateByteCount = 0;
     var stateByteIndex = {};
     var initialized = false;
 
@@ -24,6 +25,7 @@ module.exports = exports = function() {
 
         init: function() {
             stateBytes = defineStateBytes(stateDefinitions.slice(0));
+            stateByteCount = stateBytes.length % 2 === 0 ? stateBytes.length : stateBytes.length + 1;
             for (var i = 0; i < stateDefinitions.length; i++) {
                 var def = stateDefinitions[i];
                 stateByteIndex[def.name] = def;
@@ -47,7 +49,7 @@ module.exports = exports = function() {
         exec: executor.exec,
 
         createState: function() {
-            return State(stateBytes.length, stateByteIndex);
+            return State(stateByteCount, stateByteIndex);
         },
 
         pack: function(bytes) {
@@ -59,7 +61,7 @@ module.exports = exports = function() {
         },
 
         unpack: function(str) {
-            var bytes = [];
+            var bytes = new Uint8Array(stateByteCount);
             for(var i = 0, n = str.length; i < n; i++) {
                 var char = str.charCodeAt(i);
                 bytes.push(char >>> 8, char & 0xFF);
@@ -70,24 +72,6 @@ module.exports = exports = function() {
 
     return game;
 };
-
-function bits(byte) {
-
-}
-
-function pack(bytes) {
-
-}
-
-function unpack(str) {
-    var bytes = [];
-    for(var i = 0, n = str.length; i < n; i++) {
-        var char = str.charCodeAt(i);
-        bytes.push(char >>> 8, char & 0xFF);
-    }
-    return bytes;
-}
-
 
 function defineStateBytes(defs) {
     var bytes = [];
