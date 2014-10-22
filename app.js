@@ -109,8 +109,9 @@ g.addAction('check',
     function(player) {
         // a player may check if
         // it is that player's turn
+        // there are other playing players
         // the player doesn't need to bet
-        // a player needs to bet is the previous playing player's bet is larger than his or her own
+        // a player needs to bet if the previous playing player's bet is larger than his or her own
         var position = getPrevPlayingPlayerPosition(this, player.position);
         if (position == player.position) return false;
         var theirBet = getInt(this, 'player' + position + 'Bet', 6);
