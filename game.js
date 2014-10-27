@@ -21,7 +21,7 @@ module.exports = exports = function() {
     var stateByteIndex = {};
     var initialized = false;
 
-    var game = {
+    return {
 
         init: function() {
             stateBytes = defineStateBytes(stateDefinitions.slice(0));
@@ -70,7 +70,6 @@ module.exports = exports = function() {
         }
     };
 
-    return game;
 };
 
 function defineStateBytes(defs) {
