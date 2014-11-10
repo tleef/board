@@ -6,9 +6,7 @@ var billion = 1000 * million;
 var trillion = 1000 * billion;
 
 var maxPlayers = 8;
-var maxWallet = 250 * trillion;
-var maxBet = 250 * trillion;
-var maxPot = 250 * trillion;
+var maxTotalCash = 250 * trillion;
 
 var g = Game();
 
@@ -57,9 +55,11 @@ g.addAction('deal',
     function() {
         // when we deal
         var i;
+        var player;
+        var pot;
 
         // we collect all of the bets and put them in the pot
-        var pot = getInt(this, 'pot', 6);
+        pot = getInt(this, 'pot', 6);
         for (i = 0; i < maxPlayers; i++) {
             var playerBet = 'player' + i + 'Bet';
             pot += getInt(this, playerBet, 6);
@@ -70,15 +70,65 @@ g.addAction('deal',
         // if river is out, it is the end of a round
         var river = this.get('card4');
         if (river) {
+            // at the end of a round
+            // we find the winners of the round
+            // divide the pot evenly amongst the winners
+            // reset the pot
+            // reset the cards
+            // mark round as not started
+
+            // get winners
+
+            var community_cards = [
+                cardMap[this.get('card0')],
+                cardMap[this.get('card1')],
+                cardMap[this.get('card2')],
+                cardMap[this.get('card3')],
+                cardMap[this.get('card4')]
+            ];
+
+            var players = [];
+
+            for (i = 0; i < maxPlayers; i++) {
+                player = 'player' + i;
+                if (this.get(player + 'Playing')) {
+                    players.push({
+                        position: i,
+                        cards: [
+                            cardMap[this.get(player + 'Card0')],
+                            cardMap[this.get(player + 'Card1')]
+                        ]
+                    });
+                }
+            }
+
+            var winners = findWinners(community_cards, players);
+
+            // award pot
+
+            pot = getInt(this, 'pot', 6);
+            var prize = Math.floor(pot / winners.length);
+            winners.forEach(function(winner) {
+                var playerWallet = 'player' + winner.position;
+                var wallet = getInt(this, playerWallet, 6) + prize;
+                setInt(this, playerWallet, wallet, 6);
+            });
+
+            // reset pot
+
+            setInt(this, 'pot', 0, 6);
+
+            // reset cards
+
             this.set('card0', 0);
             this.set('card1', 0);
             this.set('card2', 0);
             this.set('card3', 0);
             this.set('card4', 0);
 
-            // award pot
+            // start round
 
-            // advance button
+            this.set('roundStarted', 0);
 
         }
 
@@ -88,7 +138,7 @@ g.addAction('deal',
 
             // mark those that are sitting as playing
             for (i = 0; i < maxPlayers; i++) {
-                var player = 'player' + i;
+                player = 'player' + i;
                 this.set(player + 'Playing', this.get(player + 'Sitting'));
             }
 
@@ -119,6 +169,8 @@ g.addAction('deal',
 
 // need some way of indicating an action requires the authenticated player
 
+// need to subtract from wallet when betting
+
 g.addAction('join',
     function(player) {
         // when a player joins we
@@ -139,7 +191,19 @@ g.addAction('join',
         // the position is not currently occupied
         // the player's wallet is not larger than the max
         var occupied = 'player' + player.position + 'Occupied';
-        return this.get('numPlayers') < maxPlayers && !this.get(occupied) && player.wallet < maxWallet;
+
+        var pot = getInt(this, 'pot', 6);
+        var wallets = 0;
+        var bets = 0;
+        for (var i = 0; i < maxPlayers; i++) {
+            var playerI = 'player' + i;
+            wallets += getInt(this, playerI + 'Wallet', 6);
+            bets += getInt(this, playerI + 'Bet', 6);
+        }
+
+        var totalCash = pot + wallets + bets + player.wallet;
+
+        return this.get('numPlayers') < maxPlayers && !this.get(occupied) && totalCash < maxTotalCash;
     });
 
 // a player may sit at any time
@@ -226,14 +290,13 @@ g.addAction('bet',
         // they are not the last raiser
         // there are other playing players
         // the total bet is greater than or equal to the previous playing player's bet
-        // the total bet is less than the max bet
         if (this.get('turn') != player.position) return false;
         if (this.get('lastRaiser') == player.position) return false;
         var position = getPrevPlayingPlayerPosition(this, player.position);
         if (position == player.position) return false;
         var theirBet = getInt(this, 'player' + position + 'Bet', 6);
         var myBet = getInt(this, 'player' + player.position + 'Bet', 6) + amount;
-        return myBet >= theirBet && myBet < maxBet;
+        return myBet >= theirBet;
     });
 
 function setFirstTurn(state) {
@@ -241,6 +304,7 @@ function setFirstTurn(state) {
     position = getPrevPlayingPlayerPosition(state, position);
     position = getNextPlayingPlayerPosition(state, position);
     state.set('turn', position);
+    state.set('button', position);
 }
 
 function advanceTurn(state, position) {
@@ -306,6 +370,74 @@ function bytesToInt(bytes) {
     return parseInt(hex, 16);
 }
 
+function findWinners(community_cards, players) {
+    var hands = [];
+    players.forEach(function(player) {
+        var best_hand = findBestHand(community_cards.concat(player.cards));
+        best_hand.position = player.position;
+        hands.push(best_hand);
+    });
+    hands = hands.sort(byBestHandDesc);
+    var winners = [hands.shift()];
+    var next = hands.shift();
+    while(next && byBestHandDesc(winners[0], next) === 0) {
+        winners.push(next);
+        next = hands.shift();
+    }
+    return winners;
+}
+
+function findBestHand(cards) {
+    var combos = [
+        [0,1,2,3,4],
+        [0,1,2,3,5],
+        [0,1,2,3,6],
+        [0,1,2,4,5],
+        [0,1,2,4,6],
+        [0,1,2,5,6],
+        [0,1,3,4,5],
+        [0,1,3,4,6],
+        [0,1,3,5,6],
+        [0,1,4,5,6],
+        [0,2,3,4,5],
+        [0,2,3,4,6],
+        [0,2,3,5,6],
+        [0,2,4,5,6],
+        [0,3,4,5,6],
+        [1,2,3,4,5],
+        [1,2,3,4,6],
+        [1,2,3,5,6],
+        [1,2,4,5,6],
+        [1,3,4,5,6],
+        [2,3,4,5,6]
+    ];
+
+    var best_hand = null;
+
+    combos.forEach(function(combo) {
+        var hand = [
+            cards[combo[0]],
+            cards[combo[1]],
+            cards[combo[2]],
+            cards[combo[3]],
+            cards[combo[4]]
+        ];
+        var this_hand = score(hand);
+
+        if (!best_hand) {
+            best_hand = this_hand;
+            return;
+        }
+
+        if (byBestHandDesc(best_hand, this_hand) > 0) {
+            best_hand = this_hand;
+        }
+    });
+
+    return best_hand;
+
+}
+
 // Straight Flush:    [5]
 // Four of a Kind:    [4, 1]
 // Full House:        [3, 2]
@@ -349,6 +481,18 @@ function score(hand) {
         o.score = [[[1], [3, 1, 1, 1]], [[3, 1, 1, 2], [5]]][+flush][+straight]
     }
     return o
+}
+
+function byBestHandDesc(a, b) {
+    var score_comparison = byDeepSortDesc(a.score, b.score);
+    var rank_comparison = byDeepSortDesc(a.ranks, b.ranks);
+
+    if (score_comparison === 0 && rank_comparison === 0)
+        return 0;
+    if (score_comparison > 0 || (score_comparison === 0 && rank_comparison > 0))
+        return 1;
+    if (score_comparison < 0 || (score_comparison === 0 && rank_comparison < 0))
+        return -1;
 }
 
 function byDeepSortDesc(a, b) {
