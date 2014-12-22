@@ -53,23 +53,37 @@ g.init();
 
 g.addAction('deal',
     function() {
-        // when we deal
-        var i;
-        var player;
-        var pot;
+
+        var roundStarted, flop, turn, river;
 
         // we collect all of the bets and put them in the pot
-        pot = getInt(this, 'pot', 6);
-        for (i = 0; i < maxPlayers; i++) {
-            var playerBet = 'player' + i + 'Bet';
-            pot += getInt(this, playerBet, 6);
-            setInt(this, playerBet, 0, 6);
-        }
-        setInt(this, 'pot', pot, 6);
+        collectBets(this);
 
+        river = this.get('card4');
         // if river is out, it is the end of a round
-        var river = this.get('card4');
-        if (river) {
+        if (river) endRound(this);
+
+        roundStarted = this.get('roundStarted');
+        flop = this.get('card0');
+        turn = this.get('card3');
+        river = this.get('card4');
+
+        if (!roundStarted) startRound(this);
+        else if (!flop) dealFlop(this);
+        else if (!turn) dealTurn(this);
+        else if (!river) dealRiver(this);
+
+        function collectBets(state) {
+            var pot = getInt(state, 'pot', 6);
+            for (var i = 0; i < maxPlayers; i++) {
+                var playerBet = 'player' + i + 'Bet';
+                pot += getInt(state, playerBet, 6);
+                setInt(state, playerBet, 0, 6);
+            }
+            setInt(state, 'pot', pot, 6);
+        }
+
+        function endRound(state) {
             // at the end of a round
             // we find the winners of the round
             // divide the pot evenly amongst the winners
@@ -77,26 +91,28 @@ g.addAction('deal',
             // reset the cards
             // mark round as not started
 
+            var i, player;
+
             // get winners
 
             var community_cards = [
-                cardMap[this.get('card0')],
-                cardMap[this.get('card1')],
-                cardMap[this.get('card2')],
-                cardMap[this.get('card3')],
-                cardMap[this.get('card4')]
+                cardMap[state.get('card0')],
+                cardMap[state.get('card1')],
+                cardMap[state.get('card2')],
+                cardMap[state.get('card3')],
+                cardMap[state.get('card4')]
             ];
 
             var players = [];
 
             for (i = 0; i < maxPlayers; i++) {
                 player = 'player' + i;
-                if (this.get(player + 'Playing')) {
+                if (state.get(player + 'Playing')) {
                     players.push({
                         position: i,
                         cards: [
-                            cardMap[this.get(player + 'Card0')],
-                            cardMap[this.get(player + 'Card1')]
+                            cardMap[state.get(player + 'Card0')],
+                            cardMap[state.get(player + 'Card1')]
                         ]
                     });
                 }
@@ -106,61 +122,120 @@ g.addAction('deal',
 
             // award pot
 
-            pot = getInt(this, 'pot', 6);
+            var pot = getInt(state, 'pot', 6);
             var prize = Math.floor(pot / winners.length);
             winners.forEach(function(winner) {
                 var playerWallet = 'player' + winner.position;
-                var wallet = getInt(this, playerWallet, 6) + prize;
-                setInt(this, playerWallet, wallet, 6);
+                var wallet = getInt(state, playerWallet, 6) + prize;
+                setInt(state, playerWallet, wallet, 6);
             });
 
             // reset pot
 
-            setInt(this, 'pot', 0, 6);
+            setInt(state, 'pot', 0, 6);
 
             // reset cards
 
-            this.set('card0', 0);
-            this.set('card1', 0);
-            this.set('card2', 0);
-            this.set('card3', 0);
-            this.set('card4', 0);
-
-            // start round
-
-            this.set('roundStarted', 0);
-
-        }
-
-        // if not round started, it is the beginning of a round
-        var roundStarted = this.get('roundStarted');
-        if (!roundStarted) {
-
-            // mark those that are sitting as playing
+            state.set('card0', 0);
+            state.set('card1', 0);
+            state.set('card2', 0);
+            state.set('card3', 0);
+            state.set('card4', 0);
             for (i = 0; i < maxPlayers; i++) {
                 player = 'player' + i;
-                this.set(player + 'Playing', this.get(player + 'Sitting'));
+                state.set(player + 'Card0', 0);
+                state.set(player + 'Card1', 0);
             }
 
-            // deal to players
+            // start round
+
+            state.set('roundStarted', 0);
+        }
+
+        function startRound(state) {
+            var usedCards = [];
+
+            // mark those that are sitting as playing and deal to players
+            for (var i = 0; i < maxPlayers; i++) {
+                var player = 'player' + i;
+                var sitting = state.get(player + 'Sitting');
+                if (sitting) {
+                    state.set(player + 'Playing', 1);
+                    state.set(player + 'Card0', drawCard(usedCards));
+                    state.set(player + 'Card1', drawCard(usedCards));
+                }
+            }
+
+            setFirstTurn(state);
+
+            // if the current player is not the button advance the button
+            state.set('button', state.get('turn'));
 
             // start round
-            this.set('roundStarted', 1);
-
-            // set turn
-            setFirstTurn(this);
-
+            state.set('roundStarted', 1);
         }
 
+        function dealFlop(state) {
+            var usedCards = [];
 
-        // if flop is not out, it is the beginning of a round
-        var flop = this.get('card0');
-        if (!flop) {
+            // find the used cards in players hands
+            for (var i = 0; i < maxPlayers; i++) {
+                var player = 'player' + i;
+                usedCards.push(state.get(player + 'Card0'));
+                usedCards.push(state.get(player + 'Card1'));
+            }
 
+            // set the flop
+            state.set('card0', drawCard(usedCards));
+            state.set('card1', drawCard(usedCards));
+            state.set('card2', drawCard(usedCards));
 
-
+            setFirstTurn(state);
         }
 
+        function dealTurn(state) {
+            var usedCards = [];
+
+            // find the used cards in players hands
+            for (var i = 0; i < maxPlayers; i++) {
+                var player = 'player' + i;
+                usedCards.push(state.get(player + 'Card0'));
+                usedCards.push(state.get(player + 'Card1'));
+            }
+
+            // find the used cards in the flop
+            usedCards.push(state.get('card0'));
+            usedCards.push(state.get('card1'));
+            usedCards.push(state.get('card2'));
+
+            // set the turn
+            state.set('card3', drawCard(usedCards));
+
+            setFirstTurn(state);
+        }
+
+        function dealRiver(state) {
+            var usedCards = [];
+
+            // find the used cards in players hands
+            for (var i = 0; i < maxPlayers; i++) {
+                var player = 'player' + i;
+                usedCards.push(state.get(player + 'Card0'));
+                usedCards.push(state.get(player + 'Card1'));
+            }
+
+            // find the used cards in the flop
+            usedCards.push(state.get('card0'));
+            usedCards.push(state.get('card1'));
+            usedCards.push(state.get('card2'));
+
+            // find the used turn card
+            usedCards.push(state.get('card3'));
+
+            state.set('card4', drawCard(usedCards));
+
+            setFirstTurn(state);
+        }
 
     },
     function() {
@@ -203,7 +278,7 @@ g.addAction('join',
 
         var totalCash = pot + wallets + bets + player.wallet;
 
-        return this.get('numPlayers') < maxPlayers && !this.get(occupied) && totalCash < maxTotalCash;
+        return this.get('numPlayers') < maxPlayers && !this.get(occupied) && totalCash <= maxTotalCash;
     });
 
 // a player may sit at any time
@@ -249,6 +324,13 @@ g.addAction('fold',
         // they are no longer playing
         var playing = 'player' + player.position + 'Playing';
         this.set(playing, 0);
+
+        // their bet goes to the pot
+        var pot = getInt(this, 'pot', 6);
+        var playerBet = 'player' + player.position + 'Bet';
+        pot += getInt(this, playerBet, 6);
+        setInt(this, playerBet, 0, 6);
+        setInt(this, 'pot', pot, 6);
 
         // it is the next playing player's turn
         advanceTurn(this, player.position);
@@ -304,15 +386,13 @@ function setFirstTurn(state) {
     position = getPrevPlayingPlayerPosition(state, position);
     position = getNextPlayingPlayerPosition(state, position);
     state.set('turn', position);
-    state.set('button', position);
 }
 
 function advanceTurn(state, position) {
     position = getNextPlayingPlayerPosition(state, position);
 
     if (state.get('lastRaiser') == position) g.exec('deal', state);
-
-    state.set('turn', position);
+    else state.set('turn', position);
 }
 
 function getNextPlayingPlayerPosition(state, startingPosition) {
@@ -505,6 +585,14 @@ function byDeepSortDesc(a, b) {
         return valB - valA;
     }
     return 0;
+}
+
+function drawCard(usedCards) {
+    do {
+        var card = Math.floor(Math.random * 52) + 1;
+    } while (!!~usedCards.indexOf(card));
+    usedCards.push(card);
+    return card;
 }
 
 var cardMap = {
