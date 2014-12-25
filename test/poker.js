@@ -59,7 +59,57 @@ suite('poker', function () {
     verify(before, before, diff(before, s.bytes));
   });
 
+  test('sit', function() {
+    var s = poker.createState();
+    var i, player, before, apply, expected;
 
+    // setup
+    for (i = 0; i < maxPlayers; i++) {
+      player = { position: i, wallet: Math.pow(2, 23) };
+      poker.exec('join', s, player);
+    }
+
+    for (i = 0; i < maxPlayers; i++) {
+      before = new Uint8Array(s.bytes);
+      apply = applyChanges.bind(null, s.byteMap, before);
+      player = { position: i };
+      poker.exec('sit', s, player);
+      expected = apply('player' + i + 'Sitting', 1);
+      verify(before, expected, diff(before, s.bytes));
+
+      // already sitting
+      before = new Uint8Array(s.bytes);
+      poker.exec('sit', s, player);
+      verify(before, before, diff(before, s.bytes));
+    }
+  });
+
+  test('stand', function() {
+    var s = poker.createState();
+    var i, player, before, apply, expected;
+
+    // setup
+    for (i = 0; i < maxPlayers; i++) {
+      player = { position: i, wallet: Math.pow(2, 23) };
+      poker.exec('join', s, player);
+    }
+
+    for (i = 0; i < maxPlayers; i++) {
+      // standing by default
+      before = new Uint8Array(s.bytes);
+      player = { position: i };
+      poker.exec('stand', s, player);
+      verify(before, before, diff(before, s.bytes));
+
+      poker.exec('sit', s, player);
+
+      before = new Uint8Array(s.bytes);
+      apply = applyChanges.bind(null, s.byteMap, before);
+      poker.exec('stand', s, player);
+      expected = apply('player' + i + 'Sitting', 0);
+      verify(before, expected, diff(before, s.bytes));
+    }
+  });
 
 });
 
