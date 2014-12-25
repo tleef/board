@@ -12,93 +12,93 @@ powerBytes[6] = 0x3f;
 powerBytes[7] = 0x7f;
 powerBytes[8] = 0xff;
 
-module.exports = exports = function() {
+module.exports = exports = function () {
 
-    var executor = Executor();
-    var stateDefinitions = [];
-    var stateBytes = [];
-    var stateByteCount = 0;
-    var stateByteIndex = {};
-    var initialized = false;
+  var executor = Executor();
+  var stateDefinitions = [];
+  var stateBytes = [];
+  var stateByteCount = 0;
+  var stateByteMap = {};
+  var initialized = false;
 
-    return {
+  return {
 
-        init: function() {
-            stateBytes = defineStateBytes(stateDefinitions.slice(0));
-            stateByteCount = stateBytes.length % 2 === 0 ? stateBytes.length : stateBytes.length + 1;
-            for (var i = 0; i < stateDefinitions.length; i++) {
-                var def = stateDefinitions[i];
-                stateByteIndex[def.name] = def;
-            }
-            initialized = true;
-        },
+    init: function () {
+      stateBytes = defineStateBytes(stateDefinitions.slice(0));
+      stateByteCount = stateBytes.length % 2 === 0 ? stateBytes.length : stateBytes.length + 1;
+      for (var i = 0; i < stateDefinitions.length; i++) {
+        var def = stateDefinitions[i];
+        stateByteMap[def.name] = def;
+      }
+      initialized = true;
+    },
 
-        addState: function (name, size, initialVal) {
-            stateDefinitions.push({
-                name: name,
-                size: size,
-                initialVal: initialVal
-            })
-        },
+    addState: function (name, size, initialVal) {
+      stateDefinitions.push({
+        name: name,
+        size: size,
+        initialVal: initialVal
+      })
+    },
 
-        addAction: function(name, fn, validator) {
-            if (validator) fn.valid = validator;
-            executor.actions[name] = fn;
-        },
+    addAction: function (name, fn, validator) {
+      if (validator) fn.valid = validator;
+      executor.actions[name] = fn;
+    },
 
-        exec: executor.exec,
+    exec: executor.exec,
 
-        createState: function() {
-            return State(stateByteCount, stateByteIndex);
-        },
+    createState: function () {
+      return State(stateByteCount, stateByteMap);
+    },
 
-        pack: function(bytes) {
-            var chars = [];
-            for(var i = 0, n = bytes.length; i < n;) {
-                chars.push(((bytes[i++] & 0xff) << 8) | (bytes[i++] & 0xff));
-            }
-            return String.fromCharCode.apply(null, chars);
-        },
+    pack: function (bytes) {
+      var chars = [];
+      for (var i = 0, n = bytes.length; i < n;) {
+        chars.push(((bytes[i++] & 0xff) << 8) | (bytes[i++] & 0xff));
+      }
+      return String.fromCharCode.apply(null, chars);
+    },
 
-        unpack: function(str) {
-            var bytes = new Uint8Array(stateByteCount);
-            for(var i = 0, n = str.length; i < n; i++) {
-                var char = str.charCodeAt(i);
-                bytes.push(char >>> 8, char & 0xFF);
-            }
-            return bytes;
-        }
-    };
+    unpack: function (str) {
+      var bytes = new Uint8Array(stateByteCount);
+      for (var i = 0, n = str.length; i < n; i++) {
+        var char = str.charCodeAt(i);
+        bytes.push(char >>> 8, char & 0xFF);
+      }
+      return bytes;
+    }
+  };
 
 };
 
 function defineStateBytes(defs) {
-    var bytes = [];
-    while (defs.length) {
-        var byte = [];
-        var space = 8;
-        do {
-            var max = 0;
-            var best = null;
-            var index = 0;
-            for (var i = 0; i < defs.length; i++) {
-                var def = defs[i];
-                if (space - def.size >= 0 && def.size > max) {
-                    index = i;
-                    best = def;
-                    max = def.size;
-                }
-            }
-            if (best) {
-                best.byte = bytes.length;
-                best.offset = 8 - space;
-                best.mask = powerBytes[best.size] << best.offset;
-                byte.push(best);
-                defs.splice(index, 1);
-                space -= best.size;
-            }
-        } while(best && space > 0 && defs.length);
-        bytes.push(byte);
-    }
-    return bytes;
+  var bytes = [];
+  while (defs.length) {
+    var byte = [];
+    var space = 8;
+    do {
+      var max = 0;
+      var best = null;
+      var index = 0;
+      for (var i = 0; i < defs.length; i++) {
+        var def = defs[i];
+        if (space - def.size >= 0 && def.size > max) {
+          index = i;
+          best = def;
+          max = def.size;
+        }
+      }
+      if (best) {
+        best.byte = bytes.length;
+        best.offset = 8 - space;
+        best.mask = powerBytes[best.size] << best.offset;
+        byte.push(best);
+        defs.splice(index, 1);
+        space -= best.size;
+      }
+    } while (best && space > 0 && defs.length);
+    bytes.push(byte);
+  }
+  return bytes;
 }
