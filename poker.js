@@ -296,8 +296,6 @@ g.addAction('stand',
     this.set(sitting, 0);
   });
 
-// TODO: make sure round has started
-
 g.addAction('check',
   function (player) {
     // when a player checks
@@ -311,6 +309,7 @@ g.addAction('check',
     // there are other playing players
     // the player doesn't need to bet
     // a player needs to bet if the previous playing player's bet is larger than his or her own
+    if (!this.get('roundStarted')) return false;
     if (this.get('turn') != player.position) return false;
     var position = getPrevPlayingPlayerPosition(this, player.position);
     if (position == player.position) return false;
@@ -318,8 +317,6 @@ g.addAction('check',
     var myBet = utils.getInt(this, 'player' + player.position + 'Bet', 6);
     return myBet >= theirBet;
   });
-
-// TODO: make sure round has started
 
 g.addAction('fold',
   function (player) {
@@ -345,6 +342,7 @@ g.addAction('fold',
     // there are other playing players
     // the player does need to bet
     // a player needs to bet if the previous playing player's bet is larger than his or her own
+    if (!this.get('roundStarted')) return false;
     if (this.get('turn') != player.position) return false;
     var position = getPrevPlayingPlayerPosition(this, player.position);
     if (position == player.position) return false;
@@ -352,8 +350,6 @@ g.addAction('fold',
     var myBet = utils.getInt(this, 'player' + player.position + 'Bet', 6);
     return theirBet > myBet;
   });
-
-// TODO: make sure round has started
 
 g.addAction('bet',
   function (player, amount) {
@@ -383,6 +379,7 @@ g.addAction('bet',
     // there are other playing players
     // the total bet is greater than or equal to the previous playing player's bet
     // they have enough in their wallet
+    if (!this.get('roundStarted')) return false;
     if (this.get('turn') != player.position) return false;
     if (this.get('lastRaiser') == player.position) return false;
     var position = getPrevPlayingPlayerPosition(this, player.position);
