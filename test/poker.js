@@ -111,6 +111,19 @@ suite('poker', function () {
     }
   });
 
+  test('initial deal', function() {
+    var s = poker.createState();
+    var player, before, apply, expected;
+
+    player = { position: 0, wallet: Math.pow(2, 23) };
+    poker.exec('join', s, player);
+
+    //can't deal to just one player
+    before = new Uint8Array(s.bytes);
+    poker.exec('deal', s);
+    verify(before, before, diff(before, s.bytes));
+  })
+
 });
 
 function verify(before, expectedAfter, actualDiff) {
