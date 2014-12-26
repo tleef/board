@@ -305,6 +305,7 @@ g.addAction('check',
   },
   function (player) {
     // a player may check if
+    // the round has started
     // it is that player's turn
     // there are other playing players
     // the player doesn't need to bet
@@ -338,6 +339,7 @@ g.addAction('fold',
   },
   function (player) {
     // a player may fold if
+    // the round has started
     // it is that player's turn
     // there are other playing players
     // the player does need to bet
@@ -374,6 +376,7 @@ g.addAction('bet',
   },
   function (player, amount) {
     // a player may bet if
+    // the round has started
     // it is that player's turn
     // they are not the last raiser
     // there are other playing players
